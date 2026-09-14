@@ -1,0 +1,134 @@
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+variables:
+  TF_ROOT: "${CI_PROJECT_DIR}/enviroment/dev"
+
+.aws_oidc:
+
+  # Tell GitLab to create an AWS login token for this job.
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      # AWS checks this value before allowing access.
+      aud: sts.amazonaws.com
+
+  variables:
+    # IAM Role stored in GitLab CI/CD Variables.
+    AWS_ROLE_ARN: "${ROLE_ARN}"
+
+    # Temporary session name shown in AWS logs.
+    AWS_ROLE_SESSION_NAME: "gitlab-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+
+    # File where we save the login token.
+    AWS_WEB_IDENTITY_TOKEN_FILE: "/tmp/gitlab-oidc-token"
+
+  before_script:
+    # Save the GitLab token into a file.
+    # Terraform will use this file to log in to AWS.
+    - printf '%s' "${GITLAB_OIDC_TOKEN}" > "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+
+.init:
+  image:
+    name: hashicorp/terraform:1.15
+    entrypoint: [""]
+  before_script:
+    - terraform -version
+    - terraform -chdir="${TF_ROOT}" init
+
+stages:
+  - validate
+  - plan
+  - apply
+  - destroy
+
+fmt_job:
+  image:
+    name: hashicorp/terraform:1.15
+    entrypoint: [""]
+  stage: validate
+  script:
+    - terraform fmt -recursive -diff -check
+  rules:
+    - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
+
+tflint_job:
+  image:
+    name: ghcr.io/terraform-linters/tflint:v0.64.0
+    entrypoint: [""]
+  stage: validate
+  before_script:
+    - tflint --chdir=${CI_PROJECT_DIR} --init
+  script:
+    - tflint --chdir=${CI_PROJECT_DIR} --recursive --minimum-failure-severity=error --format=compact
+  rules:
+    - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
+
+validate_job:
+  stage: validate
+  extends:
+    - .aws_oidc
+    - .init
+  before_script:
+    - !reference [.aws_oidc, before_script]
+    - !reference [.init, before_script]
+  script:
+    - terraform -chdir="${TF_ROOT}" validate
+  rules:
+    - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
+
+
+plan_job:
+  stage: plan
+  extends:
+    - .aws_oidc
+    - .init
+  before_script:
+    - !reference [.aws_oidc, before_script]
+    - !reference [.init, before_script]
+  script:
+    # - terraform -chdir="${TF_ROOT}" plan -out=tfplan
+    - terraform -chdir="${TF_ROOT}" plan -var="db_username=${DB_USERNAME}" -var="db_password=${DB_PASSWORD}" -var="flask_app_Secret_key=${FLASH_SECRET_KEY}" -out=tfplan
+  artifacts:
+    paths:
+      - "${TF_ROOT}/tfplan"
+  rules:
+    - if: $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+
+apply_job:
+  stage: apply
+  dependencies:
+    - plan_job
+  extends:
+    - .aws_oidc
+    - .init
+  before_script:
+    - !reference [.aws_oidc, before_script]
+    - !reference [.init, before_script]
+  script:
+    - terraform -chdir="${TF_ROOT}" apply tfplan
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  when: manual
+
+destroy_job:
+  stage: destroy
+  dependencies:
+    - plan_job
+  extends:
+    - .aws_oidc
+    - .init
+  before_script:
+    - !reference [.aws_oidc, before_script]
+    - !reference [.init, before_script]
+  script:
+    # - terraform -chdir="${TF_ROOT}" destroy -auto-approve
+    - terraform -chdir="${TF_ROOT}" destroy -var="db_username=${DB_USERNAME}" -var="db_password=${DB_PASSWORD}" -var="flask_app_Secret_key=${FLASH_SECRET_KEY}" -auto-approve
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+  when: manual
+  manual_confirmation: 'Are you sure you want to delete this IAC?'
+
