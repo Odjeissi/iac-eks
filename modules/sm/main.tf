@@ -15,7 +15,7 @@ resource "aws_secretsmanager_secret" "credential" {
 resource "aws_secretsmanager_secret_version" "this" {
   secret_id = aws_secretsmanager_secret.credential.id
   secret_string = jsonencode({
-    DATABASE_URL : "postgresql://${var.db_username}:${var.db_password}@${var.external_name_EKS}/${var.db_name}"
+    DATABASE_URL : "postgresql+psycopg2://${var.db_username}:${var.db_password}@${var.external_name_EKS}/${var.db_name}"
     SECRET_KEY : var.flask_app_Secret_key
   })
 }

@@ -115,6 +115,17 @@ variable "namespace" {
   type        = list(string)
 }
 
+variable "fargate_second_profile_name" {
+  description = "Name of the Fargate profile"
+  type        = string
+}
+
+variable "second_namespace" {
+  description = "namespace to create"
+  type        = list(string)
+}
+
+
 # SM
 
 variable "credentials" {

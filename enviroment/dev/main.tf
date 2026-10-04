@@ -66,12 +66,14 @@ module "main_sm" {
 # EKS Module
 
 module "main_eks" {
-  source                     = "../../modules/eks"
-  cluster_name               = var.cluster_name
-  cluster_version            = var.cluster_version
-  cluster_subnet_ids         = [for subnet_ids in module.vpc_main.private_1_subnet_ids : subnet_ids]
-  env                        = var.env
-  fargate_profile_name       = var.fargate_profile_name
-  fargate_profile_subnet_ids = [for subnet_ids in module.vpc_main.private_1_subnet_ids : subnet_ids]
-  namespace                  = var.namespace
+  source                      = "../../modules/eks"
+  cluster_name                = var.cluster_name
+  cluster_version             = var.cluster_version
+  cluster_subnet_ids          = [for subnet_ids in module.vpc_main.private_1_subnet_ids : subnet_ids]
+  env                         = var.env
+  fargate_profile_name        = var.fargate_profile_name
+  fargate_second_profile_name = var.fargate_second_profile_name
+  fargate_profile_subnet_ids  = [for subnet_ids in module.vpc_main.private_1_subnet_ids : subnet_ids]
+  namespace                   = var.namespace
+  second_namespace            = var.second_namespace
 }

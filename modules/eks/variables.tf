@@ -23,12 +23,23 @@ variable "fargate_profile_name" {
   type        = string
 }
 
+variable "fargate_second_profile_name" {
+  description = "Name of the Fargate profile"
+  type        = string
+}
+
+
 variable "fargate_profile_subnet_ids" {
   description = "Subnet IDs for the Fargate profile"
   type        = list(string)
 }
 
 variable "namespace" {
+  description = "namespace to create"
+  type        = list(string)
+}
+
+variable "second_namespace" {
   description = "namespace to create"
   type        = list(string)
 }

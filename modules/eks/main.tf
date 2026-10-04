@@ -97,6 +97,23 @@ resource "aws_eks_fargate_profile" "main_fargate" {
   depends_on = [aws_iam_role_policy_attachment.example-AmazonEKSFargatePodExecutionRolePolicy]
 }
 
+resource "aws_eks_fargate_profile" "second_fargate" {
+  cluster_name           = aws_eks_cluster.main_eks.name
+  fargate_profile_name   = var.fargate_second_profile_name
+  pod_execution_role_arn = aws_iam_role.fargate_profile_role.arn
+  subnet_ids             = var.fargate_profile_subnet_ids
+
+  dynamic "selector" {
+    for_each = var.second_namespace
+
+    content {
+      namespace = selector.value
+    }
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.example-AmazonEKSFargatePodExecutionRolePolicy]
+}
+
 # AWS Policy for the Fargate Profile
 
 resource "aws_iam_role" "fargate_profile_role" {
@@ -125,5 +142,5 @@ resource "aws_eks_addon" "example" {
   cluster_name = aws_eks_cluster.main_eks.name
   addon_name   = "coredns"
 
-  depends_on = [aws_eks_fargate_profile.main_fargate]
+  depends_on = [aws_eks_fargate_profile.main_fargate, aws_eks_fargate_profile.second_fargate]
 }

@@ -54,8 +54,11 @@ cluster_version = "1.35"
 
 fargate_profile_name = "fargate-profile-1"
 
-namespace = ["argocd", "kube-system", "dev", "stage", "prod"]
+fargate_second_profile_name = "fargate-profile-2"
 
+namespace = ["default", "kube-system", "dev", "stage", "prod"]
+
+second_namespace = ["argocd", "monitoring"]
 # ACM
 
 domain_name = "thecloudguy.live"
